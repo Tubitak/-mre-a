@@ -15,10 +15,10 @@ from tqdm import tqdm
 
 
 def nepoznata_funkcija(x):
-    return np.linalg.norm(x) ** 4 - np.linalg.norm(x) - 2 * np.dot(x, x + 5.)**2 + 1
+    return np.linalg.norm(x) ** 2 - np.linalg.norm(x) - 2 * np.dot(x, x + 5.)**2 + 1
 
-BROJ_TACAKA = 5000
-BROJ_TACAKA_ZA_UCENJE = 4000
+BROJ_TACAKA = 1000
+BROJ_TACAKA_ZA_UCENJE = 900
 
 blob, _ = make_blobs(n_samples=BROJ_TACAKA, centers=3)
 X_train = blob[:BROJ_TACAKA_ZA_UCENJE]
@@ -30,9 +30,10 @@ y_test = np.array([nepoznata_funkcija(x) for x in X_test])
 df = DataFrame(dict(x=X_train[:, 0], y=X_train[:, 1], value=y_train))
 df_test = DataFrame(dict(x=X_test[:, 0], y=X_test[:, 1], value=y_test))
 
+'''
 dist = DistanceMetric.get_metric('euclidean')
 rastojanja = pd.DataFrame(dist.pairwise(df.value.values.reshape(-1, 1)))
-
+'''
 
 def nadji_tacke_u_okolini(x, y, epsilon, df):
     tacke_u_okolini = []
@@ -59,6 +60,7 @@ def predvidi_u_tacki(x, y, epsilon, delta, df):
 EPSILON = 0.3  # najmanja razlika u vrednosti funkcije koja se uci da bi se ostvarila žveza.
 DELTA = 2.  # Okolina oko nove test tačke u kojoj se traži ž-struktura za indukovanje informacija. Možda ovo učiti, za početak?
 
+'''
 sta_povezati = rastojanja.values < EPSILON
 
 print('Kreiranje podataka vezanih za linije u ž-geometriji...')
@@ -70,8 +72,9 @@ for i in tqdm(range(sta_povezati.shape[0])):
         if sta_povezati[i, j]:
             linije.append([df.iloc[i][['x', 'y']], df.iloc[j][['x', 'y']]])
             linije_indeksi[i].append(nadji_tacke_u_okolini(df.iloc[i]['x'], df.iloc[i]['y'], DELTA, df))
+'''
 
-for EPSILON in [0.01]:
+for EPSILON in [0.001, 0.01, 0.1]:
     for DELTA in [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 2., 5.]:
         greske = []
         for test_primer in df_test.itertuples():
@@ -80,8 +83,10 @@ for EPSILON in [0.01]:
             predikcija = predvidi_u_tacki(tacka[0], tacka[1], EPSILON, DELTA, df)
             greska = (predikcija - prava_vrednost) ** 2
             greske.append(greska)
-
-        print(EPSILON, DELTA, 'Finalna prosecna greska:', np.average(greska))
+        y = y_test
+        pred_y = [predvidi_u_tacki(tacka[0], tacka[1], EPSILON, DELTA, df) for tacka in X_test]
+        print('MSE:', sklearn.metrics.mean_squared_error(y, pred_y))
+        print(EPSILON, DELTA, 'Finalna prosecna greska:', np.average(greske))
 
 # Drugi modeli na ovom problemu
 gb = GradientBoostingRegressor(n_estimators=100)
@@ -97,7 +102,7 @@ rf.fit(X_train, y_train)
 rezultat = rf.predict(X_test)
 print('Greska za Random Forest sa 100 drveta:', mean_squared_error(y_test, rezultat))
 from sklearn.neural_network import MLPRegressor
-dnn = MLPRegressor((200, 100, 10))
+dnn = MLPRegressor((200, 100, 10), max_iter=50000)
 dnn.fit(X_train, y_train)
 rezultat = dnn.predict(X_test)
 print('Greska za DNN [200, 100, 10]:', mean_squared_error(y_test, rezultat))
